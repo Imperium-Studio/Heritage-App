@@ -3,7 +3,7 @@ from .models import *
 
 admin.site.register(Course)
 admin.site.register(Section)
-admin.site.register(ProblemSet)
+admin.site.register(Room)
 admin.site.register(Element)
 admin.site.register(UserCourseAccessLevel)
 admin.site.register(UserSectionAccessLevel)

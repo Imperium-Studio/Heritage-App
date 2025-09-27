@@ -10,7 +10,7 @@ User = get_user_model()
 __all__ = [
     "Course",
     "Section",
-    "ProblemSet",
+    "Room",
     "Element",
     "UserCourseAccessLevel",
     "UserSectionAccessLevel",
@@ -33,17 +33,17 @@ class VisibilityLevel(models.TextChoices):
     LIMITER = "LIM", _("LIMITER")   # certain users only
 
 # The query sets below are used to sum the progress of all elements 
-# that are relevant to the course/section/problemset 
+# that are relevant to the course/section/room 
 # and return a percentage complete
 class CourseQuerySet(models.QuerySet):
     def user_progress_percent(self, user):
         return self.annotate(
-            total_elements=models.Count("sections__problemsets__elements", distinct=True),
+            total_elements=models.Count("sections__rooms__elements", distinct=True),
             completed_elements=models.Count(
-                "sections__problemsets__elements__progressofelement",
+                "sections__rooms__elements__progressofelement",
                 filter=models.Q(
-                    sections__problemsets__elements__progressofelement__user=user,
-                    sections__problemsets__elements__progressofelement__status=Status.COMPLE,
+                    sections__rooms__elements__progressofelement__user=user,
+                    sections__rooms__elements__progressofelement__status=Status.COMPLE,
                 ),
                 distinct=True,
             ),
@@ -55,12 +55,12 @@ class CourseQuerySet(models.QuerySet):
 class SectionQuerySet(models.QuerySet):
     def user_progress_percent(self, user):
         return self.annotate(
-            total_elements=models.Count("problemsets__elements", distinct=True),
+            total_elements=models.Count("rooms__elements", distinct=True),
             completed_elements=models.Count(
-                "problemsets__elements__progressofelement",
+                "rooms__elements__progressofelement",
                 filter=models.Q(
-                    problemsets__elements__progressofelement__user=user,
-                    problemsets__elements__progressofelement__status=Status.COMPLE,
+                    rooms__elements__progressofelement__user=user,
+                    rooms__elements__progressofelement__status=Status.COMPLE,
                 ),
                 distinct=True,
             ),
@@ -69,7 +69,7 @@ class SectionQuerySet(models.QuerySet):
         )
 
     
-class ProblemSetQuerySet(models.QuerySet):
+class RoomQuerySet(models.QuerySet):
     def user_progress_percent(self, user):
         return self.annotate(
             total_elements=models.Count("elements", distinct=True),
@@ -154,18 +154,18 @@ class Section(models.Model):
     objects = SectionQuerySet.as_manager()
 
 
-class ProblemSet(models.Model):
+class Room(models.Model):
     course = models.ForeignKey(
         Course,
         on_delete=models.SET_NULL,
         null=True,
-        related_name="problemsets"
+        related_name="rooms"
     )
     section = models.ForeignKey(
         Section,
         on_delete=models.SET_NULL,
         null=True,
-        related_name="problemsets"
+        related_name="rooms"
     )
     title = models.CharField(max_length=100)
     description = models.CharField(max_length=255)
@@ -173,7 +173,7 @@ class ProblemSet(models.Model):
         settings.AUTH_USER_MODEL, 
         on_delete=models.SET_NULL, 
         null=True, 
-        related_name="created_problemsets"
+        related_name="created_rooms"
     )
     number_of_problems = models.IntegerField(default=0)
     metadata = models.JSONField(default=dict, blank=True)
@@ -183,7 +183,7 @@ class ProblemSet(models.Model):
     def __str__(self):
         return f"{self.course.title if self.course else 'No Course'} - {self.title}"
     
-    objects = ProblemSetQuerySet.as_manager()
+    objects = RoomQuerySet.as_manager()
 
 
 class ProblemType(models.TextChoices):
@@ -200,8 +200,8 @@ class Tag(models.Model):
 
 
 class Element(models.Model):
-    problemset = models.ForeignKey(
-        ProblemSet,
+    room = models.ForeignKey(
+        Room,
         on_delete=models.SET_NULL,
         null=True,
         related_name="elements"
@@ -217,7 +217,7 @@ class Element(models.Model):
     created_on = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.problemset} - {self.type}"
+        return f"{self.room} - {self.type}"
 
 
 class UserCourseAccessLevel(models.Model):
@@ -257,7 +257,7 @@ class ProgressOfElement(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     course = models.ForeignKey(Course, on_delete=models.SET_NULL, null=True)
     section = models.ForeignKey(Section, on_delete=models.SET_NULL, null=True)
-    problemset = models.ForeignKey(ProblemSet, on_delete=models.SET_NULL, null=True)
+    room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True)
     element = models.ForeignKey(Element, on_delete=models.SET_NULL, null=True)
     status = models.CharField(
         max_length=50,
@@ -270,13 +270,13 @@ class ProgressOfElement(models.Model):
     metadata = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
-        return f"{self.user.username if self.user else 'Unknown'} → {self.problemset.title if self.problemset else 'No ProblemSet'} ({self.status})"
+        return f"{self.user.username if self.user else 'Unknown'} → {self.room.title if self.Room else 'No Room'} ({self.status})"
 
 class SavedProblem(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     course = models.ForeignKey(Course, on_delete=models.SET_NULL, null=True)
     section = models.ForeignKey(Section, on_delete=models.SET_NULL, null=True)
-    problemset = models.ForeignKey(ProblemSet, on_delete=models.SET_NULL, null=True)
+    room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True)
     element = models.ForeignKey(Element, on_delete=models.SET_NULL, null=True)
     status = models.CharField(
         max_length=50,
